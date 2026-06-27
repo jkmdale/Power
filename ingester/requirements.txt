@@ -1,0 +1,6 @@
+asyncpg==0.30.0
+httpx==0.27.2
+aiomqtt==2.3.0
+python-dotenv==1.0.1
+# Optional — only needed when SOURCE=emporia. Safe to keep installed.
+pyemvue==0.18.7

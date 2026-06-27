@@ -1,0 +1,18 @@
+# Secrets / local config
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Docker / data volumes (if ever bind-mounted locally)
+data/
+pgdata/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store

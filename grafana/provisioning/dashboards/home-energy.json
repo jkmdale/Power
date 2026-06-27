@@ -1,0 +1,95 @@
+{
+  "uid": "home-energy",
+  "title": "Home Energy",
+  "tags": ["energy", "power"],
+  "timezone": "Pacific/Auckland",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-3h", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Whole house — now",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": { "unit": "kwatt", "decimals": 2, "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 5 },
+            { "color": "red", "value": 8 } ] } },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value",
+        "graphMode": "area", "textMode": "value" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "timescaledb" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT house_w / 1000.0 AS \"kW\" FROM house_power_1m ORDER BY bucket DESC LIMIT 1;"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Power by appliance + rest of house",
+      "gridPos": { "h": 9, "w": 18, "x": 6, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": { "unit": "watt", "custom": {
+          "drawStyle": "line", "fillOpacity": 35, "stacking": { "mode": "normal", "group": "A" },
+          "lineWidth": 1, "showPoints": "never" } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom",
+        "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "timescaledb" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT r.bucket AS \"time\", c.appliance AS metric, r.avg_w AS value FROM readings_1m r JOIN channels c USING (device_id, channel) WHERE c.role = 'appliance' AND $__timeFilter(r.bucket) ORDER BY r.bucket;"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "postgres", "uid": "timescaledb" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT bucket AS \"time\", 'Rest of house' AS metric, rest_of_house_w AS value FROM house_power_1m WHERE $__timeFilter(bucket) ORDER BY bucket;"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Daily energy by appliance (kWh)",
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 9 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": { "unit": "kwatth", "custom": {
+          "drawStyle": "bars", "fillOpacity": 80, "stacking": { "mode": "normal", "group": "A" },
+          "lineWidth": 1 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right",
+        "calcs": ["sum"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "timescaledb" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT time_bucket('1 day', bucket) AS \"time\", c.appliance AS metric, sum(energy_last - energy_first) / 1000.0 AS value FROM readings_1m r JOIN channels c USING (device_id, channel) WHERE c.role = 'appliance' AND $__timeFilter(bucket) GROUP BY 1, c.appliance ORDER BY 1;"
+        }
+      ]
+    }
+  ]
+}
