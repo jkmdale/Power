@@ -51,9 +51,34 @@ docker compose exec timescaledb psql -U energy -d energy \
   -c "SELECT * FROM house_power_1m ORDER BY bucket DESC LIMIT 3;"
 ```
 
+## No hardware: use your existing Genesis data
+
+Already have usage data from the Genesis app? Import it for whole-house trends and cost —
+no hardware needed. Export "My Daily Usage" as CSV, then:
+
+```bash
+DATABASE_URL=postgresql://energy:energy@localhost:5432/energy \
+  python tools/import_genesis.py path/to/genesis-export.csv
+```
+
+Open the **Whole House (Genesis data)** dashboard in Grafana. The importer auto-detects the
+export shape — **daily** (date / usage / dollars / type → `meter_daily_usage`) or an
+**interval/hourly** export (datetime + kWh → `meter_hourly`) — and cleans values like
+`"34.64 kWh"` and `"$10.99"` for you. Daily exports include Genesis's **actual** dollars, so
+cost is exact, not estimated.
+
+> **Important — this is whole-house only.** A single total per day *cannot* be split into
+> spa vs heat pump vs oven (appliance disaggregation needs per-**second** data). The
+> dashboard's appliance table is an **estimate** from the `appliance_profiles` you enter,
+> with an explicit "Unexplained" remainder. For *accurate* per-appliance numbers you need CT
+> clamps — see **[docs/hardware-install.md](docs/hardware-install.md)**. Edit the
+> `appliance_profiles` table (seeded in `db/init/02_retailer.sql`) to match your gear.
+
 ## Connecting real hardware
 
-Edit `.env` and set `SOURCE`, then `docker compose up -d` again.
+The minimum accurate setup and full wiring/commissioning steps are in
+**[docs/hardware-install.md](docs/hardware-install.md)**. In short: edit `.env`, set
+`SOURCE`, then `docker compose up -d` again.
 
 ### Shelly Pro 3EM (recommended — local, real-time, private)
 ```

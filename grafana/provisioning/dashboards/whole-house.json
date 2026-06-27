@@ -1,0 +1,112 @@
+{
+  "uid": "whole-house",
+  "title": "Whole House (Genesis data)",
+  "tags": ["energy", "genesis", "no-hardware"],
+  "timezone": "Pacific/Auckland",
+  "schemaVersion": 39,
+  "version": 2,
+  "refresh": "",
+  "time": { "from": "now-90d", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Total energy (range)",
+      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": { "defaults": { "unit": "kwatth", "decimals": 1 }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "postgres", "uid": "timescaledb" }, "format": "table", "rawQuery": true,
+          "rawSql": "SELECT sum(kwh) AS \"kWh\" FROM meter_daily_usage WHERE $__timeFilter(day);" }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Total cost (range, actual $)",
+      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2 }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "postgres", "uid": "timescaledb" }, "format": "table", "rawQuery": true,
+          "rawSql": "SELECT sum(dollars) AS \"NZ$\" FROM meter_daily_usage WHERE $__timeFilter(day);" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Average per day",
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": { "defaults": { "unit": "kwatth", "decimals": 1 }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "postgres", "uid": "timescaledb" }, "format": "table", "rawQuery": true,
+          "rawSql": "SELECT round(avg(kwh)::numeric, 1) AS \"kWh/day\" FROM meter_daily_usage WHERE $__timeFilter(day);" }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Daily energy (kWh)",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 5 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": { "defaults": { "unit": "kwatth", "custom": { "drawStyle": "bars", "fillOpacity": 80, "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "postgres", "uid": "timescaledb" }, "format": "time_series", "rawQuery": true,
+          "rawSql": "SELECT day::timestamptz AS \"time\", kwh AS \"kWh\" FROM meter_daily_usage WHERE $__timeFilter(day) ORDER BY day;" }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Daily cost (actual $)",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 5 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "custom": { "drawStyle": "bars", "fillOpacity": 80, "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "postgres", "uid": "timescaledb" }, "format": "time_series", "rawQuery": true,
+          "rawSql": "SELECT day::timestamptz AS \"time\", dollars AS \"NZ$\" FROM meter_daily_usage WHERE $__timeFilter(day) ORDER BY day;" }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Average by day of week",
+      "gridPos": { "h": 9, "w": 8, "x": 0, "y": 14 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": { "showHeader": true },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "postgres", "uid": "timescaledb" }, "format": "table", "rawQuery": true,
+          "rawSql": "SELECT trim(to_char(day,'Day')) AS \"Day\", round(avg(kwh)::numeric,2) AS \"Avg kWh\", round(avg(coalesce(dollars,0))::numeric,2) AS \"Avg $\" FROM meter_daily_usage WHERE $__timeFilter(day) GROUP BY extract(isodow FROM day), trim(to_char(day,'Day')) ORDER BY extract(isodow FROM day);" }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Appliance breakdown — ESTIMATE only (not measured)",
+      "gridPos": { "h": 9, "w": 10, "x": 8, "y": 14 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": { "showHeader": true },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "postgres", "uid": "timescaledb" }, "format": "table", "rawQuery": true,
+          "rawSql": "WITH avg_daily AS (SELECT coalesce(avg(kwh),0) kwh FROM meter_daily_usage WHERE $__timeFilter(day)), est AS (SELECT coalesce(sum(rated_w/1000.0*hours_per_day),0) kwh FROM appliance_profiles) SELECT appliance || ' (est.)' AS \"Appliance\", round((rated_w/1000.0*hours_per_day)::numeric, 2) AS \"kWh/day\" FROM appliance_profiles UNION ALL SELECT 'Unexplained / baseload', round(((SELECT kwh FROM avg_daily) - (SELECT kwh FROM est))::numeric, 2) ORDER BY \"kWh/day\" DESC;" }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "text",
+      "title": "About this dashboard",
+      "gridPos": { "h": 9, "w": 6, "x": 18, "y": 14 },
+      "options": { "mode": "markdown", "content": "**Whole-house only — daily.**\n\nThe Genesis export is one total per day, so the appliance table is an **ESTIMATE** from your `appliance_profiles` inputs — not a measurement. Cost is Genesis's **actual** dollars.\n\nTo see what *actually* uses the power (spa vs heat pump vs oven), add CT-clamp hardware — see `docs/hardware-install.md`. That lights up the **Home Energy** dashboard with real per-appliance watts." }
+    }
+  ]
+}
